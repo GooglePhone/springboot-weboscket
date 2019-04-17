@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
+    <title>Title</title>
+    <script
+  src="http://code.jquery.com/jquery-3.3.1.js"
+  integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+  crossorigin="anonymous"></script>
+  <script src="http://cdn.jsdelivr.net/sockjs/1.0.1/sockjs.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.js"></script>
+</head>
+<body onload="disconnect()">
+<noscript>
+    <h2 style="color: #ff0000;">瀏覽器不支持 websocket</h2>
+</noscript>
+<div style="display:none">
+    <button id="connect" onclick="connect();">連線</button>
+    <button id="disconnect" onclick="disconnect();" disabled="disabled">取消連線</button>
+</div>
+<div align="center">
+	<table border="1" style="width: 80%">
+	　<tr>
+	　	<td colspan="4" align="center"><font size="100">取號機</font></td>
+	　</tr>
+	　<tr>
+		　<td>服務類別</td>
+		　<td>服務名稱</td>
+		　<td>等待人數</td>
+		　<td>取號</td>
+	　</tr>
+	 <tr>
+		　<td>
+			<ul>
+			　<li>A</li>
+			　<li>B</li>
+			　<li>C</li>
+			</ul>
+		 </td>
+		　<td>
+			<ul class="disItem">
+			　<li>運送組裝</li>
+			　<li>裁縫</li>
+			　<li>取貨</li>
+			</ul>
+		 </td>
+		　<td id="waitNumber1">0</td>
+		 <td ><button onclick="sendNumber('1');">取號</button></td>
+	　</tr>
+	 <tr>
+		　<td>
+			<ul>
+			　<li>D</li>
+			　<li>E</li>
+			</ul>
+		 </td>
+		　<td>
+			<ul class="disItem">
+			　<li>退貨</li>
+			　<li>卡友</li>
+			</ul>
+		 </td>
+		　<td id="waitNumber2">0</td>
+		 <td ><button id="sendNumber" onclick="sendNumber('2');">取號</button></td>
+	　</tr>
+	 <tr>
+		　<td>
+			<ul>
+			　<li>F</li>
+			</ul>
+		 </td>
+		　<td>
+			<ul class="disItem">
+			　<li>兒童遊戲室</li>
+			</ul>
+		 </td>
+		　<td id="waitNumber3">0</td>
+		　<td ><button id="sendNumber" onclick="sendNumber('3');">取號</button></td>
+	　</tr>
+	</table>
+    <p id="maxnumber" style="font-size: 100px"></p>
+</div>
+<script th:src="@{sockjs.min.js}"></script>
+<script th:src="@{stomp.min.js}"></script>
+<script th:src="@{jquery.js}"></script>
+<script type="text/javascript">
+    var stompClient = null;
+    function setConnected(connected) {
+        conn = $('#connect');
+        disconn = $('#disconnect');
+        if (connected) {
+            conn.attr('disabled', 'true');
+            disconn.removeAttr('disabled');
+        } else {
+            conn.removeAttr('disabled');
+            disconn.attr('disabled', 'true');
+        }
+        $('#response').html();
+    }
+
+    function connect() {
+        var socket = new SockJS("/websocket");
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function (frame) {
+            setConnected(true);
+            console.log('Connected: ' + frame);
+            stompClient.subscribe('/all', function (response) {
+            	console.log("console.log dddddd"+response.body);
+                showResponse(JSON.parse(response.body).responseMessage,JSON.parse(response.body));
+            });
+        });
+    }
+
+    function disconnect() {
+        if (stompClient != null) {
+            stompClient.disconnect();
+        }
+        setConnected(false);
+        console.log('Disconnected');
+    }
+
+    function sendName() {
+        var name = $('#name').val();
+        stompClient.send('/broadcast', {}, JSON.stringify({'name': name}));
+    }
+    
+    function sendNumber(num) {
+        stompClient.send('/broadcast', {}, JSON.stringify({'number': num}));
+    }
+
+    function showResponse(message,json) {
+        var response = $('#response');
+        response.html(response.text() + '\r\n' + message);
+        console.log(json);
+        $("#maxnumber").html(message);
+        $("#waitNumber1").html(json.number1);
+        $("#waitNumber2").html(json.number2);
+        $("#waitNumber3").html(json.number3);
+    }
+    
+    $(document).ready(function(){
+    	
+    	setTimeout(function(){
+    	  connect();
+    	}, 500);
+    	setTimeout(function(){
+    	   sendNumber(0);
+    	}, 1000);
+    });
+</script>
+</body>
+</html>

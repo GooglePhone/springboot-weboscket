@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
+<title>Title</title>
+<script src="http://code.jquery.com/jquery-3.3.1.js"
+	integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+	crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<link rel="stylesheet"
+	href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+	integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T"
+	crossorigin="anonymous">
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js"
+	integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1"
+	crossorigin="anonymous"></script>
+<script
+	src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"
+	integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM"
+	crossorigin="anonymous"></script>
+<script src="http://cdn.jsdelivr.net/sockjs/1.0.1/sockjs.min.js"></script>
+<script
+	src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.js"></script>
+<script>
+	var serviceList = [ {
+		"type" : "第一類服務項目",
+		"services" : [ "A 運送組裝", "B 裁縫", "C 取貨" ],
+		"numOfWait" : "0"
+	}, {
+		"type" : "第二類服務項目",
+		"services" : [ "退貨", "E 卡友" ],
+		"numOfWait" : "0"
+	}, {
+		"type" : "第三類服務項目",
+		"services" : [ "F 兒童遊戲室" ],
+		"numOfWait" : "0"
+	} ];
+	var titleList = [ "服務類別", "服務名稱", "等待人數", "取號" ];
+	$(document).ready(function() {
+    	reconnect();
+		var app = new Vue({
+			el : '#app',
+			data : {
+				services : serviceList,
+				titles : titleList
+			},
+			methods : {
+				takeNumber : function(index) {
+					var n = index == 0 ? 1 : index + 1;
+					stompClient.send('/broadcast', {}, JSON.stringify({
+						'number' : n
+					}));
+				}
+			}
+		})
+	})
+	function reconnect() {
+		setTimeout(function() {
+			connect();
+		}, 500);
+		setTimeout(function() {
+			sendNumber(0);
+		}, 1000);
+	}
+	function connect() {
+		var socket = new SockJS("/websocket");
+		stompClient = Stomp.over(socket);
+		stompClient.connect({}, {}, function(frame) {
+			console.log('Connected: ' + frame);
+			stompClient.subscribe('/all', function(response) {
+				console.log('response');
+				showResponse(JSON.parse(response.body));
+			});
+		}, function() {
+			stompClient = null;
+			reconnect();
+		});
+		/*         
+		stompClient.connect({}, function (frame) {
+		console.log('Connected: ' + frame);
+		stompClient.subscribe('/machine', function (response) {
+		console.log("console.log dddddd"+response.body);
+		showResponse(JSON.parse(response.body));
+		 });
+		 });
+		*/
+	}
+	function disconnect() {
+		if (stompClient != null) {
+			stompClient.disconnect();
+		}
+		console.log('Disconnected');
+	}
+
+	function sendName() {
+		var name = $('#name').val();
+	}
+	
+	
+	function sendNumber(num) {
+		stompClient.send('/broadcast', {}, JSON.stringify({
+			'number' : num
+		}));
+	}
+
+	function showResponse(json) {
+		console.log(json)
+
+		serviceList.forEach(function(item, index, array) {
+			item.numOfWait = json.numList[index]
+		})
+	}
+</script>
+</head>
+<body>
+	<div id="app">
+		<p style="text-align: center; font-size: 50px">取號機</p>
+		<table class="table table-sm">
+			<tr>
+				<th v-for="title in titles">{{title}}</th>
+			</tr>
+			<tr v-for="(service, index) in services">
+				<td>{{service.type}}</td>
+				<td><ul>
+						<li v-for="item in service.services">{{item}}</li>
+					</ul></td>
+				<td>{{service.numOfWait}}</td>
+				<td><input type="button" value="取號" @click="takeNumber(index)" /></td>
+			</tr>
+		</table>
+	</div>
+</body>
+</html>
